@@ -18,7 +18,6 @@ def fragment_protein_sequence(sequence, max_length=1000):
 def find_hetero_amino_acid_repeats(sequence):
     n = len(sequence)
     freq = defaultdict(int)
-    seen = set()  # To store substrings we've already counted
 
     # Iterate through all possible lengths of substrings (2 to N)
     for length in range(2, n + 1):
@@ -26,18 +25,17 @@ def find_hetero_amino_acid_repeats(sequence):
         for i in range(n - length + 1):
             substring = sequence[i:i + length]
 
-            # Check if all amino acids in the substring are different and it's not seen before
-            if len(set(substring)) == len(substring) and substring not in seen:  # All amino acids are unique
+            # Check if all amino acids in the substring are different
+            if len(set(substring)) == len(substring):  # All amino acids are unique
                 freq[substring] += 1
-                seen.add(substring)  # Mark this substring as seen
 
-    # Filter out repeats with frequency 1 or length 1
-    return {k: v for k, v in freq.items() if v > 1 and len(k) > 1}
+    # Return the dictionary of repeats with frequency > 1 and length > 1
+    return {repeat: count for repeat, count in freq.items() if len(repeat) > 1 and count > 1}
 
 # Function to process a single Excel sheet and return its analysis
 def process_excel(excel_data):
-    heterorepeats = set()
     sequence_data = []
+    all_heterorepeats = defaultdict(int)  # Track all heterorepeats and their counts
 
     for sheet_name in excel_data.sheet_names:
         df = excel_data.parse(sheet_name)
@@ -49,11 +47,14 @@ def process_excel(excel_data):
             entry_id = str(row[0])
             protein_name = str(row[1])
             sequence = str(row[2]).replace('"', '').replace(' ', '')
-            freq = find_hetero_amino_acid_repeats(sequence)
+            freq = find_hetero_amino_acid_repeats(sequence)  # Returns a dictionary with repeats and their counts
             sequence_data.append((entry_id, protein_name, freq))
-            heterorepeats.update(freq.keys())  # Collect unique heterorepeats
 
-    return heterorepeats, sequence_data
+            # Update the main heterorepeats dictionary with counts
+            for repeat, count in freq.items():
+                all_heterorepeats[repeat] += count
+
+    return all_heterorepeats, sequence_data
 
 # Function to generate and download Excel workbook with separate sheets for each input file
 def create_excel(sequences_data, heterorepeats, filenames):
@@ -99,7 +100,7 @@ uploaded_files = st.file_uploader("Upload Excel files", accept_multiple_files=Tr
 
 # Step 2: Process files and display results
 if uploaded_files:
-    all_heterorepeats = set()
+    all_heterorepeats = defaultdict(int)
     all_sequences_data = []
     filenames = []
 
