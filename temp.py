@@ -29,8 +29,46 @@ def find_hetero_amino_acid_repeats(sequence):
             if len(set(substring)) == len(substring):  # All amino acids are unique
                 freq[substring] += 1
 
-    # Return the dictionary of repeats with frequency > 1 and length > 1
+    # Filter out repeats with frequency 1 or length 1
     return {repeat: count for repeat, count in freq.items() if len(repeat) > 1 and count > 1}
+
+# Function to check and update repeats at boundaries
+def check_boundary_repeats(fragments, final_repeats, overlap=50):
+    """
+    Check for repeating substrings that span across fragment boundaries
+    and update the final repeats dictionary accordingly.
+    
+    Ensures that repeats are truly spanning both fragments.
+    """
+    for i in range(len(fragments) - 1):
+        left_overlap = fragments[i][-overlap:] if len(fragments[i]) >= overlap else fragments[i]
+        right_overlap = fragments[i + 1][:overlap] if len(fragments[i + 1]) >= overlap else fragments[i + 1]
+        overlap_region = left_overlap + right_overlap  # Join both
+        
+        boundary_repeats = find_hetero_amino_acid_repeats(overlap_region)
+
+        for substring, count in boundary_repeats.items():
+            # Ensure substring spans across both fragments
+            if any(aa in left_overlap for aa in substring) and any(aa in right_overlap for aa in substring):
+                final_repeats[substring] += count  # Only add if spanning both fragments
+
+    return final_repeats
+
+# Function to process the protein sequence and return final heterorepeats
+def process_protein_sequence(sequence, overlap=50):
+    fragments = fragment_protein_sequence(sequence)
+    
+    # Step 1: Find repeats in each fragment
+    final_repeats = defaultdict(int)
+    for fragment in fragments:
+        fragment_repeats = find_hetero_amino_acid_repeats(fragment)
+        for k, v in fragment_repeats.items():
+            final_repeats[k] += v
+
+    # Step 2: Check and update repeats at boundaries
+    final_repeats = check_boundary_repeats(fragments, final_repeats, overlap)
+
+    return final_repeats
 
 # Function to process a single Excel sheet and return its analysis
 def process_excel(excel_data):
